@@ -5,23 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Take Me To A Random Website I Like</title>
   <style>
+    :root {
+      --bg-light: #f0f8ff;
+      --bg-dark: #1e1e2e;
+      --text-light: #333;
+      --text-dark: #f0f0f0;
+      --accent: blue;
+    }
+
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(to right, #f0f8ff, #e6f0ff);
-      color: #333;
+      background-color: var(--bg-light);
+      color: var(--text-light);
       text-align: center;
       padding: 2rem;
+      transition: all 0.3s ease;
+    }
+
+    body.dark-mode {
+      background-color: var(--bg-dark);
+      color: var(--text-dark);
     }
 
     h1 {
-      color: #000;
+      color: inherit;
       margin-bottom: 1.5rem;
     }
 
     .button {
       background-color: black;
       color: white;
-      border: 2px solid blue;
+      border: 2px solid var(--accent);
       padding: 0.75rem 1.5rem;
       margin: 0.5rem;
       font-size: 1rem;
@@ -53,6 +67,7 @@
 
     .input-group {
       display: flex;
+      flex-wrap: wrap;
       justify-content: center;
       margin: 1rem 0;
       gap: 0.5rem;
@@ -72,7 +87,7 @@
     .file-label {
       background-color: black;
       color: white;
-      border: 2px solid blue;
+      border: 2px solid var(--accent);
       padding: 0.5rem 1rem;
       border-radius: 12px;
       cursor: pointer;
@@ -85,13 +100,35 @@
       color: black;
     }
 
+    .toggle-dark {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+    }
+
     footer {
       margin-top: 2rem;
       font-size: 0.9rem;
     }
+
+    #searchBar {
+      padding: 0.5rem;
+      border: 2px solid #aaa;
+      border-radius: 8px;
+      width: 200px;
+      margin-bottom: 1rem;
+    }
+
+    .stats {
+      font-size: 0.9rem;
+      margin-top: 1rem;
+      color: gray;
+    }
   </style>
 </head>
 <body>
+  <button class="button toggle-dark" onclick="toggleDarkMode()">🌙</button>
+
   <h1>Take Me To A Random Website I Like</h1>
 
   <div class="input-group">
@@ -99,7 +136,10 @@
     <button class="button" onclick="addWebsite()">Add</button>
   </div>
 
+  <input id="searchBar" type="text" placeholder="Search sites..." oninput="renderSites()" />
+
   <div id="siteList"></div>
+  <div class="stats" id="siteCount"></div>
 
   <div class="input-group">
     <label class="file-label" for="importFile">Import JSON File</label>
@@ -119,13 +159,19 @@
 
     function renderSites() {
       const container = document.getElementById("siteList");
+      const countDisplay = document.getElementById("siteCount");
+      const filter = document.getElementById("searchBar").value.toLowerCase();
       container.innerHTML = "";
+      let count = 0;
       websites.forEach((site, index) => {
+        if (!site.toLowerCase().includes(filter)) return;
+        count++;
         const tag = document.createElement("div");
         tag.className = "site-tag";
         tag.innerHTML = `${site} <span onclick="removeSite(${index})">×</span>`;
         container.appendChild(tag);
       });
+      countDisplay.textContent = `${count} of ${websites.length} sites shown`;
       localStorage.setItem("websites", JSON.stringify(websites));
     }
 
@@ -173,6 +219,10 @@
       } while (site === lastVisited && websites.length > 1);
       lastVisited = site;
       window.location.href = site.startsWith("http") ? site : "https://" + site;
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
     }
 
     renderSites();
