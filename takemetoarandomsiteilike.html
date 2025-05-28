@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Take me to a random website I like</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f9f9f9;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      color: #111;
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+
+    textarea {
+      width: 90%;
+      max-width: 700px;
+      height: 130px;
+      padding: 12px;
+      font-size: 16px;
+      border: 2px solid #aaa;
+      border-radius: 12px;
+      resize: vertical;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    button, .file-label {
+      background-color: black;
+      color: white;
+      border: 2px solid blue;
+      border-radius: 12px;
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease, transform 2.5s ease;
+      display: inline-block;
+    }
+
+    button:hover, .file-label:hover {
+      background-color: white;
+      color: black;
+      transform: scale(1.1);
+    }
+
+    #importJSON {
+      display: none;
+    }
+
+    footer {
+      margin-top: 40px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    footer a {
+      color: blue;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <h1>Take Me To A Random Website I Like</h1>
+
+  <textarea id="websiteList" placeholder="Enter websites separated by spaces (e.g., https://site1.com https://site2.com)"></textarea>
+
+  <!-- Hidden file input -->
+  <input type="file" id="importJSON" accept=".json">
+  <!-- Styled label acting like a button -->
+  <label for="importJSON" class="file-label">Import JSON file</label>
+
+  <div>
+    <button onclick="exportList()">Export</button>
+    <button onclick="goToRandomWebsite()">Take me to a random website I like</button>
+  </div>
+
+  <footer>
+    Made by <a href="https://github.com/BeepSmol" target="_blank">BeepSmol</a>
+  </footer>
+
+  <script>
+    // Import JSON
+    document.getElementById('importJSON').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          document.getElementById('websiteList').value = data.websites.join(' ');
+        } catch (err) {
+          alert('Invalid JSON file!');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Export JSON
+    function exportList() {
+      const list = document.getElementById('websiteList').value.split(' ').map(w => w.trim()).filter(w => w);
+      const blob = new Blob([JSON.stringify({ websites: list }, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "websites.json";
+      a.click();
+
+      URL.revokeObjectURL(url);
+    }
+
+    // Random website redirect
+    function goToRandomWebsite() {
+      const list = document.getElementById('websiteList').value.split(' ').map(w => w.trim()).filter(w => w);
+      if (list.length === 0) {
+        alert("No websites in the list!");
+        return;
+      }
+
+      const randomIndex = Math.floor(Math.random() * list.length);
+      window.location.href = list[randomIndex];
+    }
+  </script>
+</body>
+</html>
