@@ -30,7 +30,8 @@
     }
 
     .button,
-    .file-label {
+    .file-label,
+    select {
       background-color: var(--accent);
       color: white;
       border: none;
@@ -43,7 +44,8 @@
     }
 
     .button:hover,
-    .file-label:hover {
+    .file-label:hover,
+    select:hover {
       transform: scale(1.1);
       background-color: var(--secondary);
       color: white;
@@ -134,6 +136,11 @@
 
     <button class="button" onclick="exportJSON()">Export JSON</button>
     <button class="button" onclick="goToRandomSite()">Take Me To A Random Website I Like</button>
+
+    <select id="openMode">
+      <option value="_blank">Open in New Tab</option>
+      <option value="_self">Open in This Tab</option>
+    </select>
   </div>
 
   <footer>
@@ -206,7 +213,8 @@
         site = websites[Math.floor(Math.random() * websites.length)];
       } while (site === lastVisited && websites.length > 1);
       lastVisited = site;
-      window.location.href = site.startsWith("http") ? site : "https://" + site;
+      const target = document.getElementById("openMode").value;
+      window.open(site.startsWith("http") ? site : "https://" + site, target);
     }
 
     function toggleDarkMode() {
