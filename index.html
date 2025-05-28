@@ -179,16 +179,16 @@
         count++;
         const tag = document.createElement("div");
         tag.className = "site-tag";
-        tag.title = Clicks: ${siteClicks[site] || 0};
-        tag.innerHTML = ${site} <span onclick="removeSite(${index})">×</span>;
+        tag.title = `Clicks: ${siteClicks[site] || 0}`;
+        tag.innerHTML = `${site} <span onclick="removeSite(${index})">×</span>`;
         tag.onclick = () => {
           navigator.clipboard.writeText(site);
-          alert(Copied: ${site});
+          alert(`Copied: ${site}`);
         }
         container.appendChild(tag);
       });
 
-      countDisplay.textContent = ${count} of ${websites.length} sites shown;
+      countDisplay.textContent = `${count} of ${websites.length} sites shown`;
     }
 
     function addWebsite() {
