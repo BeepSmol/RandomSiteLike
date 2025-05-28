@@ -12,6 +12,8 @@
       --text: #1c1c1c;
       --accent: #3a86ff;
       --secondary: #8338ec;
+      --bg-dark: #1a1a1a;
+      --text-dark: #f0f0f0;
     }
 
     body {
@@ -21,6 +23,19 @@
       text-align: center;
       padding: 2rem;
       transition: all 0.3s ease;
+      position: relative;
+    }
+
+    body.dark-mode {
+      background-color: var(--bg-dark);
+      color: var(--text-dark);
+    }
+
+    body.dark-mode input[type="text"],
+    body.dark-mode #searchBar {
+      background: #2c2c2c;
+      color: white;
+      border-color: var(--secondary);
     }
 
     h1 {
@@ -51,20 +66,54 @@
       color: white;
     }
 
-    .site-tag {
-      display: inline-block;
-      margin: 0.3rem;
+    .site-item {
+      margin: 0.4rem 0.5rem;
+      padding: 0.4rem 0.6rem;
       background: var(--accent);
       color: white;
-      padding: 0.5rem 1rem;
-      font-size: 0.85rem;
-      border-radius: 6px;
+      border-radius: 8px;
+      display: inline-block;
+      cursor: pointer;
+      user-select: none;
+      font-size: 1rem;
+      position: relative;
     }
 
-    .site-tag span {
-      cursor: pointer;
-      margin-left: 10px;
+    .site-item:hover {
+      background-color: var(--secondary);
+    }
+
+    .site-item span.remove-site {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
       color: red;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .tags-container {
+      margin-top: 0.2rem;
+      text-align: center;
+    }
+
+    .tag {
+      display: inline-block;
+      margin: 0 0.2rem;
+      padding: 0.2rem 0.6rem;
+      background: #8338ec;
+      color: white;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.2s ease;
+    }
+
+    .tag:hover {
+      background-color: #5a1aaf;
     }
 
     .input-group {
@@ -113,19 +162,82 @@
       margin-top: 1rem;
       color: var(--accent);
     }
+
+    /* Modal for stats */
+    #statsModal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+    }
+
+    #statsModalContent {
+      background-color: var(--bg);
+      margin: 10% auto;
+      padding: 1rem 2rem;
+      border-radius: 10px;
+      max-width: 400px;
+      color: var(--text);
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    }
+
+    #statsModalContent.dark-mode {
+      background-color: var(--bg-dark);
+      color: var(--text-dark);
+    }
+
+    #statsModalContent h2 {
+      margin-top: 0;
+      color: var(--accent);
+    }
+
+    #statsCloseBtn {
+      float: right;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1.2rem;
+      color: var(--secondary);
+      user-select: none;
+    }
+
+    #statsList {
+      margin-top: 1rem;
+      text-align: left;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    #statsList div {
+      padding: 0.3rem 0;
+      border-bottom: 1px solid #ccc;
+      font-size: 0.9rem;
+    }
+
+    #statsList div:last-child {
+      border-bottom: none;
+    }
   </style>
 </head>
 <body>
-  <button class="button toggle-dark" onclick="toggleDarkMode()">🌙</button>
+  <button class="button toggle-dark" onclick="toggleDarkMode()" id="darkModeToggle">🌙</button>
 
   <h1>Take Me To A Random Website I Like</h1>
 
   <div class="input-group">
-    <input type="text" id="siteInput" placeholder="Add website (space-separated)" onkeydown="if(event.key==='Enter') addWebsite()" />
+    <input
+      type="text"
+      id="siteInput"
+      placeholder="Add website (use #tags, e.g. example.com#news,fun)"
+      onkeydown="if(event.key==='Enter') addWebsite()"
+    />
     <button class="button" onclick="addWebsite()">Add</button>
   </div>
 
-  <input id="searchBar" type="text" placeholder="Search websites..." oninput="renderSites()" />
+  <input id="searchBar" type="text" placeholder="Search websites or tags..." oninput="renderSites()" />
 
   <div id="siteList"></div>
   <div class="stats" id="siteCount"></div>
@@ -136,6 +248,7 @@
 
     <button class="button" onclick="exportJSON()">Export JSON</button>
     <button class="button" onclick="goToRandomSite()">Take Me To A Random Website I Like</button>
+    <button class="button" onclick="showStats()">Show Stats</button>
 
     <select id="openMode">
       <option value="_blank">Open in New Tab</option>
@@ -147,9 +260,29 @@
     <a href="https://github.com/BeepSmol" target="_blank">My GitHub: @BeepSmol</a>
   </footer>
 
+  <!-- Stats Modal -->
+  <div id="statsModal">
+    <div id="statsModalContent">
+      <span id="statsCloseBtn" onclick="closeStats()">&times;</span>
+      <h2>Most Clicked Sites</h2>
+      <div id="statsList"></div>
+    </div>
+  </div>
+
   <script>
+    // Data structure: Each site is an object { url: string, tags: array of strings }
     let websites = JSON.parse(localStorage.getItem("websites") || "[]");
     let lastVisited = null;
+    let siteClicks = JSON.parse(localStorage.getItem("siteClicks") || "{}");
+    let currentTagFilter = null;
+
+    function parseSiteInput(input) {
+      // Parse input like "example.com#tag1,tag2"
+      const [urlPart, tagPart] = input.split("#");
+      const url = urlPart.trim();
+      const tags = tagPart ? tagPart.split(",").map(t => t.trim()).filter(Boolean) : [];
+      return { url, tags };
+    }
 
     function renderSites() {
       const container = document.getElementById("siteList");
@@ -158,13 +291,78 @@
       container.innerHTML = "";
       let count = 0;
 
-      websites.forEach((site, index) => {
-        if (!site.toLowerCase().includes(filter)) return;
+      websites.forEach((siteObj, index) => {
+        const site = siteObj.url.toLowerCase();
+        const tagsStr = siteObj.tags.join(" ").toLowerCase();
+
+        // Filter by search input and tag filter
+        if (
+          (filter && !site.includes(filter) && !tagsStr.includes(filter)) ||
+          (currentTagFilter && !siteObj.tags.includes(currentTagFilter))
+        ) {
+          return;
+        }
+
         count++;
-        const tag = document.createElement("div");
-        tag.className = "site-tag";
-        tag.innerHTML = `${site} <span onclick="removeSite(${index})">×</span>`;
-        container.appendChild(tag);
+
+        const siteItem = document.createElement("div");
+        siteItem.className = "site-item";
+        siteItem.title = `Clicks: ${siteClicks[siteObj.url] || 0}`;
+
+        // Click on site to copy URL
+        siteItem.onclick = () => {
+          navigator.clipboard.writeText(siteObj.url);
+          alert(`Copied: ${siteObj.url}`);
+        };
+
+        // Remove button
+        const removeBtn = document.createElement("span");
+        removeBtn.className = "remove-site";
+        removeBtn.textContent = "×";
+        removeBtn.onclick = e => {
+          e.stopPropagation();
+          removeSite(index);
+        };
+        siteItem.textContent = siteObj.url;
+        siteItem.appendChild(removeBtn);
+
+        container.appendChild(siteItem);
+
+        // Tags container
+        if (siteObj.tags.length > 0) {
+          const tagsContainer = document.createElement("div");
+          tagsContainer.className = "tags-container";
+
+          siteObj.tags.forEach(tag => {
+            const tagEl = document.createElement("span");
+            tagEl.className = "tag";
+            tagEl.textContent = tag;
+            tagEl.title = `Click to filter by #${tag} or copy tag`;
+
+            tagEl.onclick = e => {
+              e.stopPropagation();
+              if (currentTagFilter === tag) {
+                // Clear filter if clicking the same tag again
+                currentTagFilter = null;
+                document.getElementById("searchBar").value = "";
+              } else {
+                currentTagFilter = tag;
+                document.getElementById("searchBar").value = "";
+              }
+              renderSites();
+            };
+
+            tagEl.oncontextmenu = e => {
+              e.preventDefault();
+              navigator.clipboard.writeText("#" + tag);
+              alert(`Copied tag: #${tag}`);
+            };
+
+            tagsContainer.appendChild(tagEl);
+          });
+
+          container.appendChild(tagsContainer);
+        }
       });
 
       countDisplay.textContent = `${count} of ${websites.length} sites shown`;
@@ -172,8 +370,16 @@
 
     function addWebsite() {
       const input = document.getElementById("siteInput");
-      const newSites = input.value.split(" ").map(s => s.trim()).filter(Boolean);
-      websites.push(...newSites);
+      const entries = input.value.split(" ").map(s => s.trim()).filter(Boolean);
+      entries.forEach(entry => {
+        const { url, tags } = parseSiteInput(entry);
+        if (url) {
+          // Prevent duplicates
+          if (!websites.some(s => s.url.toLowerCase() === url.toLowerCase())) {
+            websites.push({ url, tags });
+          }
+        }
+      });
       input.value = "";
       saveAndRender();
     }
@@ -188,11 +394,22 @@
       const reader = new FileReader();
       reader.onload = e => {
         try {
-          websites = JSON.parse(e.target.result);
-          saveAndRender();
+          const imported = JSON.parse(e.target.result);
+          if (Array.isArray(imported)) {
+            // Validate format: each entry should be object with url and optional tags array
+            if (imported.every(item => typeof item.url === "string" && (!item.tags || Array.isArray(item.tags)))) {
+              websites = imported;
+              saveAndRender();
+            } else {
+              throw new Error("Invalid format");
+            }
+          } else {
+            throw new Error("JSON is not an array");
+          }
         } catch {
           alert("Invalid JSON file.");
         }
+        event.target.value = ""; // reset file input
       };
       reader.readAsText(file);
     }
@@ -204,21 +421,34 @@
       a.href = url;
       a.download = "websites.json";
       a.click();
+      URL.revokeObjectURL(url);
     }
 
     function goToRandomSite() {
       if (websites.length === 0) return alert("No websites added yet!");
-      let site;
+      let siteObj;
       do {
-        site = websites[Math.floor(Math.random() * websites.length)];
-      } while (site === lastVisited && websites.length > 1);
-      lastVisited = site;
+        siteObj = websites[Math.floor(Math.random() * websites.length)];
+      } while (siteObj.url === lastVisited && websites.length > 1);
+      lastVisited = siteObj.url;
+
+      siteClicks[siteObj.url] = (siteClicks[siteObj.url] || 0) + 1;
+      localStorage.setItem("siteClicks", JSON.stringify(siteClicks));
+
       const target = document.getElementById("openMode").value;
-      window.open(site.startsWith("http") ? site : "https://" + site, target);
+      const url = siteObj.url.startsWith("http") ? siteObj.url : "https://" + siteObj.url;
+      window.open(url, target);
     }
 
     function toggleDarkMode() {
-      document.body.classList.toggle("dark-mode");
+      const isDark = document.body.classList.toggle("dark-mode");
+      localStorage.setItem("darkMode", isDark ? "true" : "false");
+      document.getElementById("darkModeToggle").textContent = isDark ? "☀️" : "🌙";
+      // Also toggle modal theme if open
+      const modalContent = document.getElementById("statsModalContent");
+      if (modalContent) {
+        modalContent.classList.toggle("dark-mode", isDark);
+      }
     }
 
     function saveAndRender() {
@@ -226,7 +456,53 @@
       renderSites();
     }
 
+    function showStats() {
+      const modal = document.getElementById("statsModal");
+      const statsList = document.getElementById("statsList");
+      statsList.innerHTML = "";
+
+      // Sort sites by clicks descending
+      const sortedSites = Object.entries(siteClicks)
+        .sort((a, b) => b[1] - a[1])
+        .filter(([site]) => websites.some(s => s.url === site));
+
+      if (sortedSites.length === 0) {
+        statsList.textContent = "No click data yet.";
+      } else {
+        sortedSites.forEach(([site, clicks]) => {
+          const div = document.createElement("div");
+          div.textContent = `${site} — ${clicks} click${clicks !== 1 ? "s" : ""}`;
+          statsList.appendChild(div);
+        });
+      }
+
+      // Show modal
+      modal.style.display = "block";
+
+      // Match modal theme to current mode
+      const modalContent = document.getElementById("statsModalContent");
+      modalContent.classList.toggle("dark-mode", document.body.classList.contains("dark-mode"));
+    }
+
+    function closeStats() {
+      document.getElementById("statsModal").style.display = "none";
+    }
+
+    // Close modal on outside click
+    window.onclick = function(event) {
+      const modal = document.getElementById("statsModal");
+      if (event.target === modal) {
+        closeStats();
+      }
+    };
+
+    if (localStorage.getItem("darkMode") === "true") {
+      document.body.classList.add("dark-mode");
+      document.getElementById("darkModeToggle").textContent = "☀️";
+    }
+
     renderSites();
   </script>
 </body>
 </html>
+
